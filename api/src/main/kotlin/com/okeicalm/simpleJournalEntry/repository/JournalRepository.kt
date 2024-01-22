@@ -4,12 +4,15 @@ import com.okeicalm.simpleJournalEntry.entity.Journal
 import com.okeicalm.simpleJournalEntry.entity.JournalEntry
 import com.okeicalm.simpleJournalEntry.infra.db.tables.references.JOURNALS
 import com.okeicalm.simpleJournalEntry.infra.db.tables.references.JOURNAL_ENTRIES
+import com.okeicalm.simpleJournalEntry.infra.db.tables.references.USERS
 import org.jooq.DSLContext
 import org.springframework.stereotype.Repository
 
 interface JournalRepository {
     fun findAll(): List<Journal>
     fun findById(id: Long): Journal?
+    fun isUserExist(userId: Long): Boolean
+    fun findByUserId(userId: Long): List<Journal>
     fun create(journal: Journal): Journal
 }
 
@@ -47,6 +50,7 @@ class JournalRepositoryImpl(private val dslContext: DSLContext) : JournalReposit
                 id = j.key!!,
                 incurredOn = j.value.first().getValue(JOURNALS.INCURRED_ON)!!,
                 journalEntries = journalEntries,
+                userId = j.value.first().getValue(JOURNALS.USER_ID)!!
             )
         }
     }
@@ -57,11 +61,25 @@ class JournalRepositoryImpl(private val dslContext: DSLContext) : JournalReposit
             ?.into(Journal::class.java)
     }
 
+    override fun isUserExist(userId: Long): Boolean {
+        return dslContext
+            .fetchExists(USERS, USERS.ID.eq(userId))
+    }
+
+    override fun findByUserId(userId: Long): List<Journal> {
+        return dslContext
+            .select()
+            .from(JOURNALS)
+            .where(JOURNALS.USER_ID.eq(userId))
+            .fetchInto(Journal::class.java)
+    }
+
     override fun create(journal: Journal): Journal {
         // For Journal
         val record = dslContext
             .newRecord(JOURNALS)
             .apply {
+                userId = journal.userId
                 incurredOn = journal.incurredOn
             }
         record.store()
