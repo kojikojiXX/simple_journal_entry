@@ -8,8 +8,12 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
 
 data class JournalEntryInputData(val side: Byte, val accountID: Long, val value: Int)
-data class JournalCreateUseCaseInput(val incurredOn: LocalDate, val journalEntryInputDatum: List<JournalEntryInputData>)
-data class JournalCreateUseCaseOutput(val journal: Journal)
+data class JournalCreateUseCaseInput(
+    val userId: Long,
+    val incurredOn: LocalDate,
+    val journalEntryInputDatum: List<JournalEntryInputData>
+)
+data class JournalCreateUseCaseOutput(val journal: Journal?)
 
 interface JournalCreateUseCase {
     fun call(input: JournalCreateUseCaseInput): JournalCreateUseCaseOutput
@@ -21,20 +25,25 @@ class JournalCreateUseCaseImpl(
 ) : JournalCreateUseCase {
     @Transactional
     override fun call(input: JournalCreateUseCaseInput): JournalCreateUseCaseOutput {
-        val journalEntries = input.journalEntryInputDatum.map {
-            JournalEntry.create(
-                accountId = it.accountID,
-                side = it.side,
-                value = it.value,
+        if (journalRepository.isUserExist(input.userId)) {
+            val journalEntries = input.journalEntryInputDatum.map {
+                JournalEntry.create(
+                    accountId = it.accountID,
+                    side = it.side,
+                    value = it.value,
+                )
+            }
+            val journal = Journal.create(
+                userId = input.userId,
+                incurredOn = input.incurredOn,
+                journalEntries = journalEntries,
             )
+
+            val createdJournal = journalRepository.create(journal)
+
+            return JournalCreateUseCaseOutput(createdJournal)
+        } else {
+            return JournalCreateUseCaseOutput(null)
         }
-        val journal = Journal.create(
-            incurredOn = input.incurredOn,
-            journalEntries = journalEntries,
-        )
-
-        val createdJournal = journalRepository.create(journal)
-
-        return JournalCreateUseCaseOutput(createdJournal)
     }
 }
