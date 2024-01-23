@@ -5,17 +5,22 @@ package com.okeicalm.simpleJournalEntry.infra.db.tables
 
 
 import com.okeicalm.simpleJournalEntry.infra.db.SimpleJournalEntryDb
+import com.okeicalm.simpleJournalEntry.infra.db.indexes.JOURNALS_FK_USER
+import com.okeicalm.simpleJournalEntry.infra.db.keys.JOURNALS_IBFK_1
 import com.okeicalm.simpleJournalEntry.infra.db.keys.KEY_JOURNALS_PRIMARY
 import com.okeicalm.simpleJournalEntry.infra.db.tables.records.JournalsRecord
 
 import java.time.LocalDate
 
+import kotlin.collections.List
+
 import org.jooq.Field
 import org.jooq.ForeignKey
 import org.jooq.Identity
+import org.jooq.Index
 import org.jooq.Name
 import org.jooq.Record
-import org.jooq.Row2
+import org.jooq.Row3
 import org.jooq.Schema
 import org.jooq.Table
 import org.jooq.TableField
@@ -71,6 +76,11 @@ open class Journals(
      */
     val INCURRED_ON: TableField<JournalsRecord, LocalDate?> = createField(DSL.name("incurred_on"), SQLDataType.LOCALDATE.nullable(false), this, "")
 
+    /**
+     * The column <code>simple_journal_entry_db.journals.user_id</code>.
+     */
+    val USER_ID: TableField<JournalsRecord, Long?> = createField(DSL.name("user_id"), SQLDataType.BIGINT.nullable(false), this, "")
+
     private constructor(alias: Name, aliased: Table<JournalsRecord>?): this(alias, null, null, aliased, null)
     private constructor(alias: Name, aliased: Table<JournalsRecord>?, parameters: Array<Field<*>?>?): this(alias, null, null, aliased, parameters)
 
@@ -93,8 +103,18 @@ open class Journals(
 
     constructor(child: Table<out Record>, key: ForeignKey<out Record, JournalsRecord>): this(Internal.createPathAlias(child, key), child, key, JOURNALS, null)
     override fun getSchema(): Schema? = if (aliased()) null else SimpleJournalEntryDb.SIMPLE_JOURNAL_ENTRY_DB
+    override fun getIndexes(): List<Index> = listOf(JOURNALS_FK_USER)
     override fun getIdentity(): Identity<JournalsRecord, Long?> = super.getIdentity() as Identity<JournalsRecord, Long?>
     override fun getPrimaryKey(): UniqueKey<JournalsRecord> = KEY_JOURNALS_PRIMARY
+    override fun getReferences(): List<ForeignKey<JournalsRecord, *>> = listOf(JOURNALS_IBFK_1)
+
+    private lateinit var _users: Users
+    fun users(): Users {
+        if (!this::_users.isInitialized)
+            _users = Users(this, JOURNALS_IBFK_1)
+
+        return _users;
+    }
     override fun `as`(alias: String): Journals = Journals(DSL.name(alias), this)
     override fun `as`(alias: Name): Journals = Journals(alias, this)
 
@@ -109,7 +129,7 @@ open class Journals(
     override fun rename(name: Name): Journals = Journals(name, null)
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row3 type methods
     // -------------------------------------------------------------------------
-    override fun fieldsRow(): Row2<Long?, LocalDate?> = super.fieldsRow() as Row2<Long?, LocalDate?>
+    override fun fieldsRow(): Row3<Long?, LocalDate?, Long?> = super.fieldsRow() as Row3<Long?, LocalDate?, Long?>
 }
