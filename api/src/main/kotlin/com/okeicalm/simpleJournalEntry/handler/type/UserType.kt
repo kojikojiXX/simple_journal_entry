@@ -19,7 +19,7 @@ data class UserType(
         user.name,
     )
 
-    fun journals(dataFetchingEnvironment: DataFetchingEnvironment): CompletableFuture<JournalType> {
+    fun journals(dataFetchingEnvironment: DataFetchingEnvironment): CompletableFuture<List<JournalType>> {
         return dataFetchingEnvironment.getValueFromDataLoader("JournalsDataLoader", id)
     }
 }
