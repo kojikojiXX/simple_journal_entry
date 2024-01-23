@@ -23,6 +23,7 @@ class JournalRepositoryImpl(private val dslContext: DSLContext) : JournalReposit
             .select(
                 JOURNALS.ID,
                 JOURNALS.INCURRED_ON,
+                JOURNALS.USER_ID,
                 JOURNAL_ENTRIES.ID,
                 JOURNAL_ENTRIES.JOURNAL_ID,
                 JOURNAL_ENTRIES.ACCOUNT_ID,
@@ -67,11 +68,50 @@ class JournalRepositoryImpl(private val dslContext: DSLContext) : JournalReposit
     }
 
     override fun findByUserId(userId: Long): List<Journal> {
-        return dslContext
-            .select()
+
+        val records = dslContext
+            .select(
+                JOURNALS.ID,
+                JOURNALS.USER_ID,
+                JOURNALS.INCURRED_ON,
+                JOURNAL_ENTRIES.ID,
+                JOURNAL_ENTRIES.JOURNAL_ID,
+                JOURNAL_ENTRIES.ACCOUNT_ID,
+                JOURNAL_ENTRIES.SIDE,
+                JOURNAL_ENTRIES.VALUE,
+            )
             .from(JOURNALS)
+            .join(JOURNAL_ENTRIES)
+            .on(JOURNALS.ID.eq(JOURNAL_ENTRIES.JOURNAL_ID))
             .where(JOURNALS.USER_ID.eq(userId))
-            .fetchInto(Journal::class.java)
+            .fetch()
+
+        val journalMap = records.groupBy { it[JOURNALS.ID] }
+
+        return journalMap.map { j ->
+            val journalEntries = j.value.map { je ->
+                JournalEntry(
+                    id = je.getValue(JOURNAL_ENTRIES.ID)!!,
+                    journalId = je.getValue(JOURNAL_ENTRIES.JOURNAL_ID)!!,
+                    accountId = je.getValue(JOURNAL_ENTRIES.ACCOUNT_ID)!!,
+                    side = je.getValue(JOURNAL_ENTRIES.SIDE)!!,
+                    value = je.getValue(JOURNAL_ENTRIES.VALUE)!!,
+                )
+            }
+            Journal(
+                id = j.key!!,
+                incurredOn = j.value.first().getValue(JOURNALS.INCURRED_ON)!!,
+                journalEntries = journalEntries,
+                userId = j.value.first().getValue(JOURNALS.USER_ID)!!
+            )
+        }
+//        return dslContext
+//            .select()
+//            .from(JOURNALS)
+//            .join(JOURNAL_ENTRIES)
+//            .on(JOURNALS.ID.eq(JOURNAL_ENTRIES.JOURNAL_ID))
+//            .where(JOURNALS.USER_ID.eq(userId))
+//            .fetchInto(Journal::class.java)
     }
 
     override fun create(journal: Journal): Journal {
